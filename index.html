@@ -82,6 +82,20 @@ a.btn{text-decoration:none;display:inline-block;color:var(--accent)}
 .hsearch select{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--text)}
 @media (max-width:860px){body.onhome aside .upload,body.onhome aside .side-title,body.onhome aside .decklist,body.onhome #allMissing,body.onhome #homeBtn{display:none!important}}
 @media (max-width:700px){.hstats{grid-template-columns:repeat(2,1fr)}}
+#auth{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:16px;overflow:auto;background:var(--bg) radial-gradient(1000px 500px at 70% -10%,#1b2540 0%,transparent 60%)}
+#auth.on{display:flex}
+#auth .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;width:min(420px,100%)}
+#auth h2{margin:10px 0 4px;font-size:24px}
+#auth .lead{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+#auth label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px}
+#auth .tabs{margin:16px 0 6px}
+#auth .btn.primary{width:100%;margin-top:16px;padding:10px}
+#auth .alt{text-align:center;margin-top:12px;font-size:13px}
+#auth .alt a{color:var(--blue);cursor:pointer}
+.userbox{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
+.userbox b{display:block;font-size:14px}
+.userbox span{color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:160px}
+.ok-msg{color:var(--ok);font-size:13px;margin-top:8px}
 .decklist{display:flex;flex-direction:column;gap:8px;overflow:auto}
 .deckitem{border:1px solid var(--line);background:var(--panel);border-radius:var(--r);padding:10px 12px;text-align:left;width:100%}
 .deckitem:hover{border-color:#3a4766}
@@ -178,14 +192,10 @@ input.txt{width:100%;background:var(--panel);border:1px solid var(--line);border
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect x="5" y="3" width="20" height="27" rx="3" fill="none" stroke="#f2c14e" stroke-width="2"/><rect x="10" y="6" width="20" height="27" rx="3" fill="#131824" stroke="#5aa9e6" stroke-width="2"/><path d="M15 19l3.5 3.5L25 15" fill="none" stroke="#4cc38a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <h1>Checklist de mazos<small>Star Wars Unlimited</small></h1>
     </div>
+    <div class="userbox hidden" id="userbox"><div style="min-width:0"><b id="uname"></b><span id="umail"></span></div><button class="btn sm" data-act="logout" id="logoutBtn">Salir</button></div>
     <div class="upload">
-      <button class="btn primary" id="btnUpload">Subir archivos</button>
-      <div class="opts">
-        <button class="btn sm" data-act="link">🔗 Enlace</button>
-        <button class="btn sm" data-act="image">🖼️ Imagen</button>
-        <button class="btn sm" data-act="paste">📋 Pegar</button>
-      </div>
-      Puedes seleccionar o arrastrar varios archivos a la vez (.json de SWUDB/Karabast o .txt)
+      <button class="btn primary" data-act="link" style="width:100%;margin-bottom:8px">🔗 Añadir mazo por enlace</button>
+      Pega el enlace de un mazo de SWUDB (swudb.com/deck/…)
       <input type="file" id="imgfile" multiple accept="image/png,image/jpeg,image/webp,image/gif" class="hidden">
       <input type="file" id="file" multiple accept=".json,.txt,.csv,.dek,text/plain,application/json" class="hidden">
     </div>
@@ -198,9 +208,37 @@ input.txt{width:100%;background:var(--panel);border:1px solid var(--line);border
   <main id="main"></main>
 </div>
 
+<div id="auth"><div class="box" id="authbox"></div></div>
 <div class="modal" id="modal"><div class="box" id="mbox"></div></div>
 <div class="toast" id="toast"></div>
 
+<script>
+/* Configuración de Firebase (Configuración del proyecto → Tus apps → Configuración del SDK) */
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDrlNUv4loilefeOTxDY8GQLLxds--l_6Y",
+  authDomain: "swu-checklist.firebaseapp.com",
+  projectId: "swu-checklist",
+  storageBucket: "swu-checklist.firebasestorage.app",
+  messagingSenderId: "64015999771",
+  appId: "1:64015999771:web:31821f441cbecaeed129be"
+};
+</script>
+<script type="module">
+if(window.FIREBASE_CONFIG){
+  try{
+    const B="https://www.gstatic.com/firebasejs/10.12.2/";
+    const app=await import(B+"firebase-app.js");
+    const au=await import(B+"firebase-auth.js");
+    const fsm=await import(B+"firebase-firestore.js");
+    const a=app.initializeApp(window.FIREBASE_CONFIG);
+    const auth=au.getAuth(a);
+    let fs;try{fs=fsm.initializeFirestore(a,{localCache:fsm.persistentLocalCache()})}catch(e){fs=fsm.getFirestore(a)}
+    window.FB={auth,fs,au,fsm};
+  }catch(e){console.error(e);window.FB_ERROR=e}
+}
+window.FB_READY=true;
+window.dispatchEvent(new Event("fb-ready"));
+</script>
 <script>
 (function(){
 "use strict";
@@ -418,7 +456,7 @@ function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("on");c
 function setStatus(kind,text){$("sdot").className="dot "+(kind||"");$("stext").textContent=text}
 
 /* ---------- persistence ---------- */
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S.decks))}catch(e){}}
+function saveLocal(){try{localStorage.setItem(lsKey(),JSON.stringify(S.decks))}catch(e){}}
 function loadLocal(){try{const v=JSON.parse(localStorage.getItem(LS)||"{}");return v&&typeof v==="object"?v:{}}catch(e){return {}}}
 function body(d){return {name:d.name,author:d.author||"",url:d.url||"",createdAt:d.createdAt||Date.now(),cards:d.cards.map(c=>{const o={k:c.k,id:c.id,name:c.name,sub:c.sub,sec:c.sec,n:c.n,o:c.o};if(c.alt)o.alt=c.alt;if(c.bid)o.bid=c.bid;return o})}}
 function persist(id){
@@ -448,38 +486,141 @@ function removeDeck(id){
   if(remote){clearTimeout(timers[id]);dirty.add(id);flush(id)}
   render();
 }
-async function initRemote(){
-  try{
-    if(!window.claude||!window.claude.use){setStatus("warn","Guardado solo en este navegador");return}
-    const [d,u]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
-    if(!d||!u){setStatus("warn","Guardado solo en este navegador");return}
-    const id=await u.id();
-    if(!id){setStatus("warn","Guardado solo en este navegador");return}
-    db=d;uid=id;col=db.collection("data/users/"+uid);
-    let first=true;
-    const timer=setTimeout(()=>{if(first)setStatus("warn","No se puede conectar con la nube todavía · usando este navegador")},10000);
-    col.onSnapshot(snap=>{
-      if(!snap.metadata.fromCache)clearTimeout(timer);
-      if(first&&!snap.metadata.fromCache){
-        first=false;remote=true;
-        const ids=new Set(snap.docs.map(x=>x.id));
-        for(const set of Object.keys(XDB))if(!ids.has("xdb_"+set)){saveXdbRemote(set)}
-        // migrate local-only decks into the account
-        for(const k of Object.keys(S.decks))if(!ids.has(k)&&!k.startsWith("xdb_")){dirty.add(k);flush(k)}
-        setStatus("on","Guardado en tu cuenta");
-      }
-      for(const ch of snap.docChanges()){
-        const k=ch.doc.id;
-        if(k.startsWith("xdb_")){if(ch.type!=="removed"){const b=ch.doc.data();const set=k.slice(4);if(b&&b.b){XDB[set]=JSON.parse(JSON.stringify(b));applyXdb(set,XDB[set]);saveXdbLocal();for(const d of Object.values(S.decks))enrich(d)}}continue}
-        if(dirty.has(k))continue;
-        if(ch.type==="removed"){if(!snap.metadata.fromCache)delete S.decks[k]}
-        else{const b=ch.doc.data();if(b&&Array.isArray(b.cards)){S.decks[k]=JSON.parse(JSON.stringify(b));enrich(S.decks[k])}}
-      }
-      if(S.sel&&!S.decks[S.sel])S.sel=null;
-      if(!S.sel)S.sel=sortedDecks()[0]?.[0]||null;
-      saveLocal();render();
-    },err=>{clearTimeout(timer);remote=false;setStatus("warn","Guardado solo en este navegador")});
-  }catch(e){setStatus("warn","Guardado solo en este navegador")}
+let unsub=null, USER=null, GUEST=false;
+function lsKey(){return LS+(USER?"-"+USER.uid:"")}
+function loadUserLocal(){try{const v=JSON.parse(localStorage.getItem(lsKey())||"{}");return v&&typeof v==="object"?v:{}}catch(e){return {}}}
+function startSync(u){
+  const F=window.FB;
+  const ref=F.fsm.collection(F.fs,"users",u.uid,"decks");
+  col={
+    doc:id=>({set:b=>F.fsm.setDoc(F.fsm.doc(ref,id),b),delete:()=>F.fsm.deleteDoc(F.fsm.doc(ref,id))}),
+    onSnapshot:(n,e)=>F.fsm.onSnapshot(ref,{includeMetadataChanges:true},n,e)
+  };
+  let first=true;
+  const timer=setTimeout(()=>{if(first)setStatus("warn","No se puede conectar todavía · los cambios se guardarán al volver la conexión")},10000);
+  unsub=col.onSnapshot(snap=>{
+    if(!snap.metadata.fromCache)clearTimeout(timer);
+    if(first&&!snap.metadata.fromCache){
+      first=false;remote=true;
+      const ids=new Set(snap.docs.map(x=>x.id));
+      for(const k of Object.keys(S.decks))if(!ids.has(k)){dirty.add(k);flush(k)}
+      setStatus("on","Guardado en tu cuenta");
+    }
+    for(const ch of snap.docChanges()){
+      const k=ch.doc.id;
+      if(dirty.has(k))continue;
+      if(ch.type==="removed"){if(!snap.metadata.fromCache)delete S.decks[k]}
+      else{const b=ch.doc.data();if(b&&Array.isArray(b.cards)){S.decks[k]=JSON.parse(JSON.stringify(b));enrich(S.decks[k])}}
+    }
+    if(S.sel&&!S.decks[S.sel]){S.sel=null;if(S.view==="deck")S.view="home"}
+    saveLocal();render();
+  },err=>{clearTimeout(timer);remote=false;setStatus("warn","Error al conectar con tu cuenta"+(err&&err.code?" ("+err.code+")":""))});
+}
+function stopSync(){if(unsub){unsub();unsub=null}remote=false;col=null;dirty.clear()}
+async function onUser(u){
+  stopSync();USER=u;
+  if(!u){
+    S.decks={};S.sel=null;S.view="home";
+    $("userbox").classList.add("hidden");
+    render();
+    if(!GUEST)showAuth("login");
+    return;
+  }
+  GUEST=false;hideAuth();
+  $("logoutBtn").textContent="Salir";
+  let name=u.displayName||"";
+  if(!name){try{const d=await window.FB.fsm.getDoc(window.FB.fsm.doc(window.FB.fs,"users",u.uid));name=d.exists()?d.data().username:""}catch(e){}}
+  $("uname").textContent=name||"Usuario";$("umail").textContent=u.email||"";
+  $("userbox").classList.remove("hidden");
+  S.decks=loadUserLocal();for(const d of Object.values(S.decks))enrich(d);
+  S.sel=null;S.view="home";setStatus("","Conectando…");render();
+  startSync(u);
+}
+const AUTH_ERR={
+  "auth/email-already-in-use":"Ya existe una cuenta con ese correo. Prueba a iniciar sesión.",
+  "auth/invalid-email":"El correo no es válido.",
+  "auth/weak-password":"La contraseña debe tener al menos 6 caracteres.",
+  "auth/invalid-credential":"Correo o contraseña incorrectos.",
+  "auth/invalid-login-credentials":"Correo o contraseña incorrectos.",
+  "auth/wrong-password":"Correo o contraseña incorrectos.",
+  "auth/user-not-found":"Correo o contraseña incorrectos.",
+  "auth/too-many-requests":"Demasiados intentos. Espera un poco y vuelve a probar.",
+  "auth/network-request-failed":"No hay conexión. Revisa tu internet.",
+  "auth/missing-password":"Escribe la contraseña.",
+  "auth/operation-not-allowed":"El inicio de sesión con correo no está activado en Firebase."
+};
+const authMsg=e=>AUTH_ERR[e&&e.code]||("No se pudo completar"+(e&&e.code?" ("+e.code+")":""));
+function showAuth(mode){
+  const cfg=!!window.FB;
+  const reg=mode==="register", reset=mode==="reset";
+  $("authbox").innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect x="5" y="3" width="20" height="27" rx="3" fill="none" stroke="#f2c14e" stroke-width="2"/><rect x="10" y="6" width="20" height="27" rx="3" fill="#131824" stroke="#5aa9e6" stroke-width="2"/><path d="M15 19l3.5 3.5L25 15" fill="none" stroke="#4cc38a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><h1 style="font-size:18px;margin:0">Checklist de mazos<small style="display:block;color:var(--muted);font:500 12px Inter">Star Wars Unlimited</small></h1></div>
+    ${!cfg?`<p class="err" style="margin-top:16px">${window.FIREBASE_CONFIG?"No se pudo conectar con el servidor de cuentas. Revisa tu conexión y recarga la página.":"Las cuentas aún no están activadas en esta página."}</p>
+      <div class="alt"><a data-auth="guest">Usar sin cuenta (solo en este navegador)</a></div>`:
+    reset?`<h2>Recuperar contraseña</h2><p class="lead">Te enviaremos un correo para crear una contraseña nueva.</p>
+      <form id="af"><label for="aemail">Correo electrónico</label><input class="txt" id="aemail" type="email" autocomplete="email" required>
+      <div class="err hidden" id="aerr"></div><div class="ok-msg hidden" id="aok"></div>
+      <button class="btn primary" type="submit">Enviar correo</button></form>
+      <div class="alt"><a data-auth="login">Volver a iniciar sesión</a></div>`:
+    `<div class="tabs" role="tablist"><button class="tab ${reg?"":"on"}" data-auth="login">Iniciar sesión</button><button class="tab ${reg?"on":""}" data-auth="register">Crear cuenta</button></div>
+      <form id="af">
+        <label for="aemail">Correo electrónico</label><input class="txt" id="aemail" type="email" autocomplete="email" required>
+        ${reg?`<label for="auser">Nombre de usuario</label><input class="txt" id="auser" autocomplete="username" maxlength="20" required placeholder="3 a 20 letras, números, . _ -">`:""}
+        <label for="apass">Contraseña</label><input class="txt" id="apass" type="password" autocomplete="${reg?"new-password":"current-password"}" required ${reg?'placeholder="Mínimo 6 caracteres"':""}>
+        ${reg?`<label for="apass2">Repite la contraseña</label><input class="txt" id="apass2" type="password" autocomplete="new-password" required>`:""}
+        <div class="err hidden" id="aerr"></div>
+        <button class="btn primary" type="submit">${reg?"Crear cuenta":"Entrar"}</button>
+      </form>
+      ${reg?"":`<div class="alt"><a data-auth="reset">¿Has olvidado la contraseña?</a></div>`}
+      <div class="alt" style="margin-top:6px"><a data-auth="guest" style="color:var(--muted)">Usar sin cuenta (solo en este navegador)</a></div>`}`;
+  $("auth").classList.add("on");
+  const f=$("af");if(!f)return;
+  setTimeout(()=>{const x=$("aemail");if(x)x.focus()},30);
+  const err=m=>{$("aerr").textContent=m;$("aerr").classList.toggle("hidden",!m)};
+  f.addEventListener("submit",async ev=>{
+    ev.preventDefault();err("");
+    const {auth,au,fs,fsm}=window.FB;
+    const email=$("aemail").value.trim();
+    const btn=f.querySelector("button[type=submit]");btn.disabled=true;
+    try{
+      if(reset){await au.sendPasswordResetEmail(auth,email);$("aok").textContent="Si hay una cuenta con ese correo, te hemos enviado un enlace. Revisa también la carpeta de spam.";$("aok").classList.remove("hidden");return}
+      const pass=$("apass").value;
+      if(!reg){await au.signInWithEmailAndPassword(auth,email,pass);return}
+      const user=$("auser").value.trim(),pass2=$("apass2").value;
+      if(!/^[A-Za-z0-9._-]{3,20}$/.test(user))return err("El nombre de usuario debe tener de 3 a 20 caracteres: letras, números, punto, guion o guion bajo.");
+      if(pass.length<6)return err("La contraseña debe tener al menos 6 caracteres.");
+      if(pass!==pass2)return err("Las contraseñas no coinciden.");
+      const uref=fsm.doc(fs,"usernames",user.toLowerCase());
+      try{const ex=await fsm.getDoc(uref);if(ex.exists())return err("Ese nombre de usuario ya está cogido. Elige otro.")}catch(e){}
+      const cred=await au.createUserWithEmailAndPassword(auth,email,pass);
+      try{await fsm.setDoc(uref,{uid:cred.user.uid})}
+      catch(e){await cred.user.delete().catch(()=>{});return err("Ese nombre de usuario ya está cogido. Elige otro.")}
+      await fsm.setDoc(fsm.doc(fs,"users",cred.user.uid),{username:user,email,createdAt:Date.now()});
+      try{await au.updateProfile(cred.user,{displayName:user})}catch(e){}
+      $("uname").textContent=user;
+    }catch(e){err(authMsg(e))}
+    finally{btn.disabled=false}
+  });
+}
+function hideAuth(){$("auth").classList.remove("on")}
+$("auth").addEventListener("click",e=>{
+  const a=e.target.closest("[data-auth]");if(!a)return;
+  const m=a.dataset.auth;
+  if(m==="guest"){
+    GUEST=true;USER=null;hideAuth();
+    S.decks=loadUserLocal();for(const d of Object.values(S.decks))enrich(d);S.view="home";
+    setStatus("warn","Sin cuenta · guardado solo en este navegador");
+    $("userbox").classList.remove("hidden");$("uname").textContent="Sin cuenta";$("umail").textContent="Entra para guardar en la nube";$("logoutBtn").textContent="Entrar";
+    render();return;
+  }
+  showAuth(m);
+});
+function initRemote(){
+  const go=()=>{
+    if(!window.FB){showAuth("login");setStatus("warn","Guardado solo en este navegador");return}
+    window.FB.au.onAuthStateChanged(window.FB.auth,u=>onUser(u));
+  };
+  if(window.FB_READY)go();else window.addEventListener("fb-ready",go,{once:true});
 }
 
 /* ---------- import ---------- */
@@ -596,24 +737,9 @@ function renderAll(){
 }
 function renderWelcome(){
   $("main").innerHTML=`<div class="welcome">
-    <h2>Sube tus mazos para empezar</h2>
-    <p>Selecciona o arrastra uno o varios archivos a la vez, pega un enlace de SWUDB o sube una captura o foto del mazo. Cada mazo aparecerá en la barra lateral; al pinchar en él verás las pestañas <b>Mazo completo</b>, <b>Cartas faltantes</b> y <b>Cartas obtenidas</b>. Marca las cartas que ya tienes con la casilla o ajusta las copias con − y +.</p>
-    <div class="grid2">
-      <div><p><b>JSON</b> (exportado de SWUDB, Karabast…)</p><pre>{"metadata":{"name":"Vader Aggro"},
- "leader":{"id":"SOR_010","count":1},
- "base":{"id":"SOR_026","count":1},
- "deck":[{"id":"SOR_087","count":3}]}</pre></div>
-      <div><p><b>Texto</b> (una carta por línea)</p><pre>Nombre: Vader Aggro
-Líder
-1 Darth Vader | Dark Lord of the Sith
-Base
-1 Command Center
-Mazo
-3x Death Trooper
-2 | TIE Advanced | SOR 039</pre></div>
-    </div>
-    <p style="font-size:13px">Si el archivo solo trae códigos (p. ej. <span class="code">SOR 010</span>), puedes ponerle nombre a cada carta con el lápiz; el nombre se aplica en todos tus mazos.</p>
-    <button class="btn primary" data-act="upload">Subir archivos</button> <button class="btn" data-act="link">🔗 Desde enlace de SWUDB</button> <button class="btn" data-act="image">🖼️ Desde imagen</button> <button class="btn" data-act="paste">📋 Pegar lista</button>
+    <h2>Añade tu primer mazo</h2>
+    <p>Pega el enlace de un mazo de SWUDB (por ejemplo <span class="code">https://swudb.com/deck/uLFBrzMIgyDDI</span>). Cada mazo aparecerá en tu página de inicio; al pinchar en él verás las pestañas <b>Mazo completo</b>, <b>Cartas faltantes</b> y <b>Cartas obtenidas</b>. Marca las cartas que ya tienes con la casilla o ajusta las copias con − y +.</p>
+    <button class="btn primary" data-act="link">🔗 Añadir mazo por enlace</button>
   </div>`;
 }
 function deckSummary(d){
@@ -632,10 +758,7 @@ function renderHome(){
   <div class="hero">
     <div><h2>Tus mazos</h2><p>${list.length} ${list.length===1?"mazo":"mazos"} · pincha en uno para ver su checklist</p></div>
     <div class="quick">
-      <button class="btn primary" data-act="upload">Subir archivos</button>
-      <button class="btn" data-act="link">🔗 Enlace</button>
-      <button class="btn" data-act="image">🖼️ Imagen</button>
-      <button class="btn" data-act="paste">📋 Pegar</button>
+      <button class="btn primary" data-act="link">🔗 Añadir mazo por enlace</button>
     </div>
   </div>
   <div class="hstats">
@@ -663,7 +786,7 @@ function renderHome(){
       <div class="bar"><i style="width:${t.pct}%"></i></div>
       <div class="pr"><span><strong>${t.pct}%</strong> · ${t.o}/${t.n} cartas</span><span>${t.miss?`faltan ${t.miss}`:"✓ completo"}</span></div>
     </button>`}).join("")}
-    ${!q?`<button class="dcard newd" data-act="upload"><span class="plus">+</span><span>Añadir mazos</span><span class="note" style="margin:0">archivo, enlace, imagen o pegar</span></button>`:""}
+    ${!q?`<button class="dcard newd" data-act="link"><span class="plus">+</span><span>Añadir mazo</span><span class="note" style="margin:0">con el enlace de SWUDB</span></button>`:""}
   </div>
   ${q&&!items.length?`<div class="empty">Ningún mazo coincide con «${esc(S.hq)}».</div>`:""}`;
 }
@@ -872,6 +995,9 @@ document.addEventListener("click",async e=>{
     case "link":linkModal("");break;
     case "names":namesModal();break;
     case "home":S.view="home";render();window.scrollTo(0,0);break;
+    case "logout":
+      if(!USER){GUEST=false;S.decks={};$("userbox").classList.add("hidden");render();showAuth("login");break}
+      modal(`<h3>Cerrar sesión</h3><p>Tus mazos siguen guardados en tu cuenta. Podrás volver a entrar desde cualquier navegador.</p><div class="acts"><button class="btn" data-m="cancel">Cancelar</button><button class="btn primary" data-m="ok">Cerrar sesión</button></div>`,()=>{window.FB.au.signOut(window.FB.auth)});break;
     case "allmiss":e.preventDefault();S.view="all";render();break;
     case "image":imageModal();break;
     case "toggle":c.o=c.o>=c.n?0:c.n;persist(S.sel);render();break;
@@ -901,19 +1027,17 @@ document.addEventListener("input",e=>{
   if(e.target.id==="hq"){S.hq=e.target.value;const pos=e.target.selectionStart;render();const q=$("hq");if(q){q.focus();q.setSelectionRange(pos,pos)}return}
   if(e.target.id==="q"){S.q=e.target.value;const pos=e.target.selectionStart;render();const q=$("q");if(q){q.focus();q.setSelectionRange(pos,pos)}}
 });
-$("btnUpload").onclick=()=>$("file").click();
 $("file").onchange=e=>{const f=[...e.target.files];e.target.value="";if(f.length)importFiles(f)};
 let dragN=0;
-window.addEventListener("dragenter",e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes("Files")){e.preventDefault();dragN++;document.body.classList.add("dropping")}});
+window.addEventListener("dragenter",e=>{e.preventDefault()});
 window.addEventListener("dragover",e=>{e.preventDefault()});
 window.addEventListener("dragleave",()=>{dragN=Math.max(0,dragN-1);if(!dragN)document.body.classList.remove("dropping")});
-window.addEventListener("drop",e=>{e.preventDefault();dragN=0;document.body.classList.remove("dropping");const f=[...(e.dataTransfer?.files||[])];if(f.length)importFiles(f)});
+window.addEventListener("drop",e=>{e.preventDefault();dragN=0;document.body.classList.remove("dropping");if((e.dataTransfer?.files||[]).length)toast("Para añadir un mazo usa su enlace de SWUDB")});
 
 /* ---------- start ---------- */
 loadXdbLocal();
-S.decks=loadLocal();
-for(const d of Object.values(S.decks))enrich(d);
-S.sel=sortedDecks()[0]?.[0]||null;
+S.decks={};
+S.sel=null;
 setStatus("","Conectando…");
 render();
 initRemote();
