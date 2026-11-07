@@ -497,7 +497,7 @@ function typeOf(c){
 function typeKey(c){const t=typeOf(c);return "GSEU".includes(t)&&t?t:"X"}
 
 /* ---------- imágenes de cartas incluidas en la página ---------- */
-const CARDIMG={"ASH_168": "img/ASH_168.webp", "JTL_170": "img/JTL_170.webp", "LAW_173": "img/LAW_173.webp", "SEC_133": "img/SEC_133.webp", "SOR_025": "img/SOR_025.webp", "SOR_207": "img/SOR_207.webp", "TS26_029": "img/TS26_029.webp", "TS26_030": "img/TS26_030.webp", "TS26_073": "img/TS26_073.webp", "TWI_016": "img/TWI_016.webp", "P26_240": "img/TS26_030.webp"};
+const CARDIMG={"ASH_146": "img/ASH_146.webp", "ASH_168": "img/ASH_168.webp", "JTL_143": "img/JTL_143.webp", "JTL_170": "img/JTL_170.webp", "LAW_173": "img/LAW_173.webp", "LAW_211": "img/LAW_211.webp", "SEC_133": "img/SEC_133.webp", "SEC_171": "img/SEC_171.webp", "SEC_179": "img/SEC_179.webp", "SOR_025": "img/SOR_025.webp", "SOR_134": "img/SOR_134.webp", "SOR_207": "img/SOR_207.webp", "TS26_029": "img/TS26_029.webp", "TS26_030": "img/TS26_030.webp", "TS26_073": "img/TS26_073.webp", "TWI_016": "img/TWI_016.webp", "TWI_181": "img/TWI_181.webp", "P26_240": "img/TS26_030.webp"};
 let IMGNAME=null;
 function imgFor(c){
   for(const id of [c.bid,c.id,...(c.alt||[])].filter(Boolean)){if(CARDIMG[id])return CARDIMG[id]}
