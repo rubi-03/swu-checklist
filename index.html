@@ -102,6 +102,40 @@ a.btn{text-decoration:none;display:inline-block;color:var(--accent)}
 .dimg{margin:-16px -16px 2px;height:120px;overflow:hidden;border-radius:14px 14px 0 0;background:#0f1420}
 .dimg img{width:100%;height:100%;object-fit:cover;object-position:center 30%;display:block}
 .zoomimg{max-width:100%;max-height:75vh;display:block;margin:0 auto;border-radius:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.grid.land{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:.15s}
+.tile:hover{border-color:#3a4766;transform:translateY(-2px)}
+.tile.full{border-color:rgba(76,195,138,.6)}
+.face{position:relative;display:block;width:100%;aspect-ratio:63/88;border:0;padding:0;background:#0f1420;overflow:hidden}
+.land .face{aspect-ratio:88/63}
+.face img{width:100%;height:100%;object-fit:cover;display:block;transition:.2s}
+.tile:not(.full):not(.part) .face img{filter:grayscale(.9) brightness(.5)}
+.tile.part .face img{filter:grayscale(.35) brightness(.8)}
+.ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px;text-align:center;background:linear-gradient(160deg,#1c2538,#0f1420 70%)}
+.ph.leader{background:linear-gradient(160deg,#3a2f14,#141018 75%)}
+.ph.base{background:linear-gradient(160deg,#16314a,#0f1420 75%)}
+.ph .phn{font:600 15px/1.2 "Chakra Petch";color:var(--text)}
+.ph .phs{font-size:11.5px;color:var(--muted)}
+.tile:not(.full) .ph{opacity:.65}
+.badge{position:absolute;top:8px;right:8px;background:rgba(8,10,16,.85);border:1px solid var(--line);border-radius:8px;padding:2px 8px;font:700 13px "Chakra Petch";color:var(--text)}
+.full .badge{background:var(--ok);color:#06140c;border-color:var(--ok)}
+.ribbon{position:absolute;left:8px;bottom:8px;font-size:11.5px;font-weight:700;border-radius:6px;padding:2px 8px}
+.ribbon.miss{background:var(--miss);color:#fff}
+.ribbon.ok{background:var(--ok);color:#06140c}
+.tick{position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:var(--ok);display:none;place-items:center}
+.full .tick{display:grid}
+.tfoot{padding:8px 10px 10px;display:flex;flex-direction:column;gap:5px}
+.tname{font-weight:600;font-size:13.5px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tname.unk{color:var(--muted);font-style:italic}
+.tsub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.tools{display:flex;gap:2px}
+.ctr.sm button{width:26px;height:26px}
+.ctr.sm .v{min-width:34px;font-size:13px}
+.layout{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.layout button{background:var(--panel);border:0;padding:8px 12px;color:var(--muted);font-size:13px}
+.layout button.on{background:var(--panel2);color:var(--text)}
 .decklist{display:flex;flex-direction:column;gap:8px;overflow:auto}
 .deckitem{border:1px solid var(--line);background:var(--panel);border-radius:var(--r);padding:10px 12px;text-align:left;width:100%}
 .deckitem:hover{border-color:#3a4766}
@@ -252,7 +286,8 @@ window.dispatchEvent(new Event("fb-ready"));
 const SECS={leader:"Líderes",base:"Base",deck:"Mazo",sideboard:"Banquillo"};
 const ORDER=["leader","base","deck","sideboard"];
 const LS="swu-checklist-v1";
-const S={decks:{},sel:null,tab:"full",q:"",view:"home",hq:"",hsort:"recent"};
+const S={decks:{},sel:null,tab:"full",q:"",view:"home",hq:"",hsort:"recent",layout:"grid"};
+try{S.layout=localStorage.getItem("swu-layout")||"grid"}catch(e){}
 let db=null, uid=null, col=null, remote=false;
 const dirty=new Set(), timers={}, chains={};
 
@@ -703,6 +738,27 @@ function rowHTML(c,i,mode){
   </div>`;
 }
 const HDR=`<div class="row hd"><span></span><span>Carta</span><span>Expansión</span><span>Nº</span><span style="text-align:right">Copias</span></div>`;
+function tileHTML(c,i,mode){
+  const st=c.o>=c.n?"full":c.o>0?"part":"";
+  const src=imgFor(c), miss=c.n-c.o, sid=splitId(c.bid||c.id);
+  const code=sid?sid.set+" "+sid.num:"";
+  const rib=mode==="missing"?`<span class="ribbon miss">faltan ${miss}</span>`:mode==="owned"?`<span class="ribbon ok">tienes ${Math.min(c.o,c.n)}</span>`:"";
+  return `<div class="tile ${st}">
+    <button class="face" data-act="toggle" data-i="${i}" title="${st==="full"?"Desmarcar":"Marcar como obtenida"}">
+      ${src?`<img src="${esc(src)}" alt="${esc(label(c))}" loading="lazy">`:`<div class="ph ${c.sec}"><span class="phn">${esc(label(c))}</span>${c.sub?`<span class="phs">${esc(c.sub)}</span>`:""}${code?`<span class="code">${esc(code)}</span>`:""}</div>`}
+      <span class="tick"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2.5 7.5l3 3 6-7" fill="none" stroke="#06140c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="badge">${c.o}/${c.n}</span>${rib}
+    </button>
+    <div class="tfoot">
+      <div class="tname ${c.name?"":"unk"}" title="${esc(label(c))}">${esc(label(c))}</div>
+      <div class="tsub">${esc(c.sub||"")}${c.sub&&code?" · ":""}${esc(code)}&nbsp;</div>
+      <div class="trow">
+        <div class="ctr sm"><button data-act="dec" data-i="${i}" aria-label="Quitar una">−</button><span class="v">${c.o}/${c.n}</span><button data-act="inc" data-i="${i}" aria-label="Añadir una">+</button></div>
+        <div class="tools">${src?`<button class="edit" data-act="zoom" data-i="${i}" title="Ver en grande" aria-label="Ver en grande"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>`:""}<button class="edit" data-act="rename" data-i="${i}" title="Editar nombre" aria-label="Editar nombre"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M11 2l3 3-8 8H3v-3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button></div>
+      </div>
+    </div>
+  </div>`;
+}
 function renderDeck(){
   const id=S.sel,d=S.decks[id];
   const t=totals(d);
@@ -722,7 +778,7 @@ function renderDeck(){
       .sort((a,b)=>(a[0].bid||a[0].id||"~").localeCompare(b[0].bid||b[0].id||"~")||label(a[0]).localeCompare(label(b[0])));
     if(!items.length)continue;
     const copies=items.reduce((a,[c])=>a+(mode==="missing"?c.n-c.o:mode==="owned"?Math.min(c.o,c.n):c.n),0);
-    secs+=`<div class="sec"><h3>${g.title}<span class="n">${items.length} ${items.length===1?"distinta":"distintas"} · ${copies} ${copies===1?"copia":"copias"}</span></h3><div class="rows">${HDR}${items.map(([c,i])=>rowHTML(c,i,mode)).join("")}</div></div>`;
+    secs+=`<div class="sec"><h3>${g.title}<span class="n">${items.length} ${items.length===1?"distinta":"distintas"} · ${copies} ${copies===1?"copia":"copias"}</span></h3>${S.layout==="grid"?`<div class="grid ${s==="leader"||s==="base"?"land":""}">${items.map(([c,i])=>tileHTML(c,i,mode)).join("")}</div>`:`<div class="rows">${HDR}${items.map(([c,i])=>rowHTML(c,i,mode)).join("")}</div>`}</div>`;
   }
   if(!secs)secs=`<div class="empty">${q?"Ninguna carta coincide con la búsqueda.":mode==="missing"?"🎉 No te falta ninguna carta de este mazo.":mode==="owned"?"Todavía no has marcado ninguna carta como obtenida.":"Este mazo está vacío."}</div>`;
   $("main").innerHTML=`
@@ -748,7 +804,7 @@ function renderDeck(){
     <button class="tab ${mode==="missing"?"on":""}" data-tab="missing">Cartas faltantes<span class="c">${t.distinctMiss}</span></button>
     <button class="tab ${mode==="owned"?"on":""}" data-tab="owned">Cartas obtenidas<span class="c">${t.distinctOwned}</span></button>
   </div>
-  <div class="toolbar"><input class="search" id="q" placeholder="Buscar carta por nombre o código…" value="${esc(S.q)}"></div>
+  <div class="toolbar"><input class="search" id="q" placeholder="Buscar carta por nombre o código…" value="${esc(S.q)}"><div class="layout" role="group" aria-label="Vista"><button class="${S.layout==="grid"?"on":""}" data-act="layout" data-l="grid">▦ Cartas</button><button class="${S.layout==="list"?"on":""}" data-act="layout" data-l="list">☰ Lista</button></div></div>
   ${secs}`;
 }
 function renderAll(){
@@ -1030,6 +1086,7 @@ document.addEventListener("click",async e=>{
     case "link":linkModal("");break;
     case "names":namesModal();break;
     case "home":S.view="home";render();window.scrollTo(0,0);break;
+    case "layout":S.layout=a.dataset.l;try{localStorage.setItem("swu-layout",S.layout)}catch(e){}render();break;
     case "zoom":modal(`<img class="zoomimg" src="${esc(imgFor(c))}" alt="${esc(label(c))}"><div class="acts"><button class="btn primary" data-m="ok">Cerrar</button></div>`);break;
     case "logout":
       if(!USER){GUEST=false;S.decks={};$("userbox").classList.add("hidden");render();showAuth("login");break}
